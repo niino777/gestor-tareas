@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hecho · Gestor de tareas</title>
+  <meta name="description" content="Aplicación web para crear, editar y completar tareas con JavaScript moderno.">
+  <script>/* Aplica el tema antes de pintar la página, para evitar un destello */
+    document.documentElement.dataset.bsTheme = localStorage.getItem('hecho:tema') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <nav class="navbar barra">
+    <div class="container flex-wrap gap-2">
+      <a class="navbar-brand" href="#"><img src="img/logo.png" alt="Hecho: de pendiente a hecho" height="48"></a>
+      <div class="d-flex align-items-center flex-wrap gap-3 ms-auto">
+        <div class="navhora" aria-label="Hora y fecha en Chile">
+          <time id="reloj">--:--:--</time>
+          <span id="fecha-hoy"></span>
+        </div>
+        <span class="pendientes" id="contador" aria-live="polite">
+          <i class="bi bi-bell-fill"></i><span id="contador-texto">0 pendientes</span>
+        </span>
+        <button class="tema" id="btn-tema" type="button" aria-pressed="false" aria-label="Activar modo oscuro">
+          <span class="tema__bola"><i class="bi bi-sun-fill"></i><i class="bi bi-moon-stars-fill"></i></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+    <section class="card" aria-labelledby="titulo-lista">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h1 id="titulo-lista" class="h4 mb-0">Mis tareas</h1>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="btn-avisos"><i class="bi bi-bell"></i> <span id="texto-avisos">Activar avisos</span></button>
+            <button type="button" class="btn btn-outline-secondary" id="btn-importar"><i class="bi bi-cloud-arrow-down"></i> Importar ejemplos</button>
+            <button type="button" class="btn btn-marca" data-bs-toggle="modal" data-bs-target="#modal-tarea"><i class="bi bi-plus-lg"></i> Agregar tarea</button>
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label for="busqueda" class="visually-hidden">Buscar tareas</label>
+            <input id="busqueda" class="form-control" type="search" placeholder="Buscar tarea…">
+          </div>
+          <div class="col-md-3">
+            <label for="filtro-etiqueta" class="visually-hidden">Filtrar por etiqueta</label>
+            <select id="filtro-etiqueta" class="form-select"></select>
+          </div>
+          <div class="col-md-5">
+            <div class="btn-group w-100 filtros" role="group" aria-label="Filtrar por estado">
+              <button class="btn btn-outline-secondary filtro active" data-filtro="todas" aria-pressed="true">Todas</button>
+              <button class="btn btn-outline-secondary filtro" data-filtro="pendiente" aria-pressed="false">Pendientes</button>
+              <button class="btn btn-outline-secondary filtro" data-filtro="completada" aria-pressed="false">Hechas</button>
+            </div>
+          </div>
+        </div>
+
+        <ul class="list-unstyled d-grid gap-2 mb-0" id="lista"></ul>
+        <p class="text-body-secondary" id="vacio" hidden>No hay tareas aquí. Pulsa «Agregar tarea» para empezar.</p>
+        <p class="small text-body-secondary mt-3 mb-0" id="detalle" aria-hidden="true">Pasa el cursor sobre una tarea para ver cuándo se creó.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: crear / editar tarea -->
+  <div class="modal fade" id="modal-tarea" tabindex="-1" aria-labelledby="titulo-modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="titulo-modal">Nueva tarea</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-tarea" novalidate>
+            <label for="descripcion" class="form-label">Descripción</label>
+            <input id="descripcion" class="form-control" type="text" maxlength="80" autocomplete="off" required>
+            <div class="form-text"><span id="caracteres">0</span>/80 caracteres</div>
+            <p class="error" id="error-descripcion" role="alert"></p>
+
+            <label for="fechaLimite" class="form-label">Fecha límite (opcional, hora de Chile)</label>
+            <input id="fechaLimite" class="form-control" type="datetime-local">
+            <div class="atajos d-flex flex-wrap gap-1 mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-atajo="hora">En 1 hora</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-atajo="manana">Mañana 09:00</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-atajo="semana">En 1 semana</button>
+            </div>
+            <p class="error" id="error-fecha" role="alert"></p>
+
+            <label for="etiqueta" class="form-label">Etiqueta (opcional)</label>
+            <input id="etiqueta" class="form-control" type="text" maxlength="20" list="lista-etiquetas" placeholder="Ej: Estudio, Trabajo, Casa" autocomplete="off">
+            <datalist id="lista-etiquetas"></datalist>
+
+            <fieldset class="mt-3">
+              <legend class="form-label fs-6">Color</legend>
+              <div class="colores">
+                <input type="radio" name="color" class="color-opcion" value="#5B8CFF" style="--c:#5B8CFF" aria-label="Azul" checked>
+                <input type="radio" name="color" class="color-opcion" value="#C6FF3B" style="--c:#C6FF3B" aria-label="Lima">
+                <input type="radio" name="color" class="color-opcion" value="#FF6B6B" style="--c:#FF6B6B" aria-label="Coral">
+                <input type="radio" name="color" class="color-opcion" value="#FFA94D" style="--c:#FFA94D" aria-label="Naranja">
+                <input type="radio" name="color" class="color-opcion" value="#9775FA" style="--c:#9775FA" aria-label="Violeta">
+                <input type="radio" name="color" class="color-opcion" value="#20C997" style="--c:#20C997" aria-label="Turquesa">
+              </div>
+            </fieldset>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" form="form-tarea" class="btn btn-marca" id="btn-guardar">Agregar tarea</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="aviso" id="aviso" role="status" aria-live="polite"></p>
+
+<!-- Plantilla de tarea -->
+  <template id="tpl-tarea">
+    <li class="tarea">
+      <input type="checkbox" class="form-check-input tarea__check" aria-label="Marcar como completada">
+      <div class="tarea__cuerpo">
+        <p class="tarea__texto"></p>
+        <p class="tarea__meta"><span class="tarea__etiqueta badge" hidden></span> <span class="tarea__plazo"></span></p>
+      </div>
+      <div class="tarea__acciones">
+        <div class="dropdown tarea__calendario" hidden>
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-label="Agregar al calendario"><i class="bi bi-calendar-plus"></i></button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" data-accion="google" target="_blank" rel="noopener" href="#">Google Calendar</a></li>
+            <li><button class="dropdown-item" data-accion="ics">Descargar .ics</button></li>
+          </ul>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" data-accion="editar" aria-label="Editar"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" data-accion="eliminar" aria-label="Eliminar"><i class="bi bi-trash"></i></button>
+      </div>
+    </li>
+  </template>
+</body>
+</html>
